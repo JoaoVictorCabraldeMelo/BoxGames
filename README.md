@@ -5,7 +5,7 @@ O sistema simula uma loja de jogos, permitindo listar jogos, adicionar ao carrin
 
  🎯 Objetivos do Projeto
 
-Implementar um fluxo completo de compra de jogos via terminal. 
-Facilitar evolução futura 
+- Implementar um fluxo completo de compra de jogos via terminal. 
+- Facilitar evolução futura 
 
 
