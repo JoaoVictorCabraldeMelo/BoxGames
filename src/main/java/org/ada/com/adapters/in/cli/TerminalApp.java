@@ -45,6 +45,7 @@ public class TerminalApp {
         try (Scanner scanner = new Scanner(System.in)) {
             boolean running = true;
             while (running) {
+                clearScreen();
                 printMainMenu();
                 String option = scanner.nextLine().trim();
                 if ("0".equals(option)) {
@@ -69,6 +70,8 @@ public class TerminalApp {
     private void runSellerMenu(Scanner scanner) {
         boolean inSellerMenu = true;
         while (inSellerMenu) {
+            clearScreen();
+            printNewlines(3);
             System.out.println("\n--- Seller Menu ---");
             System.out.println("1 - Register game");
             System.out.println("2 - Edit game");
@@ -78,17 +81,37 @@ public class TerminalApp {
             String option = scanner.nextLine().trim();
 
             switch (option) {
-                case "1" -> registerGame(scanner);
-                case "2" -> editGame(scanner);
-                case "3" -> excludeGame(scanner);
-                case "4" -> printGames(sellerCatalogService.listCatalog());
+                case "1" -> {
+                    clearScreen();
+                    registerGame(scanner);
+                    pauseBeforeReturn(scanner);
+                }
+                case "2" -> {
+                    clearScreen();
+                    editGame(scanner);
+                    pauseBeforeReturn(scanner);
+                }
+                case "3" -> {
+                    clearScreen();
+                    excludeGame(scanner);
+                    pauseBeforeReturn(scanner);
+                }
+                case "4" -> {
+                    clearScreen();
+                    printGames(sellerCatalogService.listCatalog());
+                    pauseBeforeReturn(scanner);
+                }
                 case "0" -> inSellerMenu = false;
-                default -> System.out.println("Invalid option.");
+                default -> {
+                    System.out.println("Invalid option.");
+                    pauseBeforeReturn(scanner);
+                }
             }
         }
     }
 
     private void runClientMenu(Scanner scanner) {
+        clearScreen();
         long clientId = readLong(scanner, "Client id: ");
         System.out.print("Client name: ");
         String name = scanner.nextLine();
@@ -96,6 +119,8 @@ public class TerminalApp {
 
         boolean inClientMenu = true;
         while (inClientMenu) {
+            clearScreen();
+            printNewlines(3);
             System.out.println("\n--- Client Menu ---");
             System.out.println("Client: " + account.getName() + " | Credits: " + account.getCredits());
             System.out.println("1 - Filter games");
@@ -109,25 +134,49 @@ public class TerminalApp {
 
             try {
                 switch (option) {
-                    case "1" -> filterGames(scanner);
-                    case "2" -> addGameToCart(scanner, clientId);
-                    case "3" -> removeGameFromCart(scanner, clientId);
-                    case "4" -> viewCart(clientId);
+                    case "1" -> {
+                        clearScreen();
+                        filterGames(scanner);
+                        pauseBeforeReturn(scanner);
+                    }
+                    case "2" -> {
+                        clearScreen();
+                        addGameToCart(scanner, clientId);
+                        pauseBeforeReturn(scanner);
+                    }
+                    case "3" -> {
+                        clearScreen();
+                        removeGameFromCart(scanner, clientId);
+                        pauseBeforeReturn(scanner);
+                    }
+                    case "4" -> {
+                        clearScreen();
+                        viewCart(clientId);
+                        pauseBeforeReturn(scanner);
+                    }
                     case "5" -> {
+                        clearScreen();
                         BigDecimal amount = readBigDecimal(scanner, "Amount to add: ");
                         account = clientWalletService.addCredits(clientId, amount);
                         System.out.println("Credits updated. New balance: " + account.getCredits());
+                        pauseBeforeReturn(scanner);
                     }
                     case "6" -> {
+                        clearScreen();
                         CheckoutResult result = cartService.checkout(clientId);
                         System.out.println(result.getMessage() + " Total: " + result.getTotal());
                         account = account.toBuilder().credits(result.getRemainingCredits()).build();
+                        pauseBeforeReturn(scanner);
                     }
                     case "0" -> inClientMenu = false;
-                    default -> System.out.println("Invalid option.");
+                    default -> {
+                        System.out.println("Invalid option.");
+                        pauseBeforeReturn(scanner);
+                    }
                 }
             } catch (IllegalArgumentException | IllegalStateException ex) {
                 System.out.println(ex.getMessage());
+                pauseBeforeReturn(scanner);
             }
         }
     }
@@ -215,6 +264,8 @@ public class TerminalApp {
     }
 
     private void printMainMenu() {
+        clearScreen();
+        printNewlines(3);
         System.out.println("\n=== BoxGames ===");
         System.out.println("1 - Seller");
         System.out.println("2 - Client");
@@ -253,6 +304,35 @@ public class TerminalApp {
         sellerCatalogService.registerGame("Cyber Odyssey", "RPG", new BigDecimal("49.90"));
         sellerCatalogService.registerGame("Rocket Arena", "Action", new BigDecimal("29.90"));
         sellerCatalogService.registerGame("Farm Architect", "Simulation", new BigDecimal("19.90"));
+    }
+
+    private void clearScreen() {
+        try {
+            String os = System.getProperty("os.name").toLowerCase();
+            if (os.contains("win")) {
+                new ProcessBuilder("cmd", "/c", "cls").inheritIO().start().waitFor();
+            } else {
+                System.out.print("\033[H\033[2J");
+                System.out.flush();
+            }
+        } catch (Exception e) {
+            // Fallback: print empty lines
+            for (int i = 0; i < 10; i++) {
+                System.out.println();
+            }
+        }
+    }
+
+    private void pauseBeforeReturn(Scanner scanner) {
+        printNewlines(3);
+        System.out.print("Press Enter to continue...");
+        scanner.nextLine();
+    }
+
+    private void printNewlines(int lines) {
+        for (int i = 0; i < lines; i++) {
+            System.out.println();
+        }
     }
 }
 
