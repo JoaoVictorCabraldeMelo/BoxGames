@@ -104,6 +104,7 @@ public class TerminalApp {
             System.out.println("4 - View cart");
             System.out.println("5 - Add credits");
             System.out.println("6 - Checkout");
+            System.out.println("7 - List All Games");
             System.out.println("0 - Back");
             String option = scanner.nextLine().trim();
 
@@ -122,6 +123,10 @@ public class TerminalApp {
                         CheckoutResult result = cartService.checkout(clientId);
                         System.out.println(result.getMessage() + " Total: " + result.getTotal());
                         account = account.toBuilder().credits(result.getRemainingCredits()).build();
+                    }
+                    case "7" -> {
+                        List<Game> games = clientCatalogService.filterGames(null, null);
+                        printGames(games);
                     }
                     case "0" -> inClientMenu = false;
                     default -> System.out.println("Invalid option.");
