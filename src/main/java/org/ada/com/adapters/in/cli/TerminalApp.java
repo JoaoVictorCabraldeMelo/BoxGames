@@ -13,6 +13,8 @@ import org.ada.com.application.service.SellerCatalogService;
 import org.ada.com.domain.model.CartItem;
 import org.ada.com.domain.model.ClientAccount;
 import org.ada.com.domain.model.Game;
+import org.ada.com.domain.model.Order;
+import org.ada.com.domain.model.OrderItem;
 import org.ada.com.domain.model.UserRole;
 import org.ada.com.domain.model.WishlistItem;
 
@@ -109,6 +111,7 @@ public class TerminalApp {
             System.out.println("8 - Add game to wishlist");
             System.out.println("9 - View wishlist");
             System.out.println("10 - Move wishlist item to cart");
+            System.out.println("11 - View order history");
             System.out.println("0 - Back");
             String option = scanner.nextLine().trim();
 
@@ -135,6 +138,7 @@ public class TerminalApp {
                     case "8" -> addGameToWishlist(scanner, clientId);
                     case "9" -> viewWishlist(clientId);
                     case "10" -> moveWishlistItemToCart(scanner, clientId);
+                    case "11" -> viewOrderHistory(clientId);
                     case "0" -> inClientMenu = false;
                     default -> System.out.println("Invalid option.");
                 }
@@ -239,6 +243,27 @@ public class TerminalApp {
             Game game = gameRepository.findById(item.getGameId())
                     .orElseThrow(() -> new IllegalStateException("Game in wishlist no longer exists."));
             System.out.printf("Game %d - %s | %s | %s%n", game.getId(), game.getTitle(), game.getGenre(), game.getPrice());
+        }
+    }
+
+    private void viewOrderHistory(long clientId) {
+        List<Order> orders = cartService.getOrderHistory(clientId);
+        if (orders.isEmpty()) {
+            System.out.println("No orders found.");
+            return;
+        }
+
+        for (Order order : orders) {
+            System.out.printf("Order %d | created at %s | total %s%n",
+                    order.getId(), order.getCreatedAt(), order.getTotal());
+            for (OrderItem item : order.getItems()) {
+                System.out.printf("  Game %d - %s | qty %d | unit %s | subtotal %s%n",
+                        item.getGameId(),
+                        item.getGameTitle(),
+                        item.getQuantity(),
+                        item.getUnitPrice(),
+                        item.getSubtotal());
+            }
         }
     }
 
