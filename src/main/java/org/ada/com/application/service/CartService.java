@@ -1,15 +1,19 @@
 package org.ada.com.application.service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.ada.com.application.port.out.CartRepository;
 import org.ada.com.application.port.out.ClientRepository;
 import org.ada.com.application.port.out.GameRepository;
+import org.ada.com.application.port.out.OrderRepository;
 import org.ada.com.application.port.out.WishlistRepository;
 import org.ada.com.domain.model.CartItem;
 import org.ada.com.domain.model.ClientAccount;
 import org.ada.com.domain.model.Game;
+import org.ada.com.domain.model.Order;
+import org.ada.com.domain.model.OrderItem;
 import org.ada.com.domain.model.WishlistItem;
 
 @RequiredArgsConstructor
@@ -19,6 +23,7 @@ public class CartService {
     private final GameRepository gameRepository;
     private final ClientRepository clientRepository;
     private final WishlistRepository wishlistRepository;
+    private final OrderRepository orderRepository;
 
     public void addGame(long clientId, long gameId, int quantity) {
         if (quantity <= 0) {
@@ -75,6 +80,11 @@ public class CartService {
         return true;
     }
 
+    public List<Order> getOrderHistory(long clientId) {
+        ensureClientExists(clientId);
+        return orderRepository.findByClientId(clientId);
+    }
+
     public CheckoutResult checkout(long clientId) {
         ClientAccount client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new IllegalArgumentException("Client account not found."));
@@ -89,9 +99,22 @@ public class CartService {
                     .build();
         }
 
-        BigDecimal total = items.stream()
-                .map(this::subtotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal total = BigDecimal.ZERO;
+        List<OrderItem> orderItems = new ArrayList<>();
+        for (CartItem cartItem : items) {
+            Game game = gameRepository.findById(cartItem.getGameId())
+                .orElseThrow(() -> new IllegalStateException("Game in cart no longer exists."));
+            BigDecimal subtotal = game.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
+            total = total.add(subtotal);
+            orderItems.add(OrderItem.builder()
+                .gameId(game.getId())
+                .gameTitle(game.getTitle())
+                .gameGenre(game.getGenre())
+                .unitPrice(game.getPrice())
+                .quantity(cartItem.getQuantity())
+                .subtotal(subtotal)
+                .build());
+        }
 
         if (client.getCredits().compareTo(total) < 0) {
             return CheckoutResult.builder()
@@ -103,6 +126,7 @@ public class CartService {
         }
 
         BigDecimal newCredits = client.getCredits().subtract(total);
+        orderRepository.createOrder(clientId, total, orderItems);
         clientRepository.updateCredits(clientId, newCredits);
         cartRepository.clearByClientId(clientId);
 
@@ -112,12 +136,6 @@ public class CartService {
                 .remainingCredits(newCredits)
                 .message("Purchase completed.")
                 .build();
-    }
-
-    private BigDecimal subtotal(CartItem item) {
-        Game game = gameRepository.findById(item.getGameId())
-                .orElseThrow(() -> new IllegalStateException("Game in cart no longer exists."));
-        return game.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
     }
 
     private void ensureClientExists(long clientId) {
