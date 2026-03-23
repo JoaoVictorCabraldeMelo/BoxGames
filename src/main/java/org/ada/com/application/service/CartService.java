@@ -6,9 +6,11 @@ import lombok.RequiredArgsConstructor;
 import org.ada.com.application.port.out.CartRepository;
 import org.ada.com.application.port.out.ClientRepository;
 import org.ada.com.application.port.out.GameRepository;
+import org.ada.com.application.port.out.WishlistRepository;
 import org.ada.com.domain.model.CartItem;
 import org.ada.com.domain.model.ClientAccount;
 import org.ada.com.domain.model.Game;
+import org.ada.com.domain.model.WishlistItem;
 
 @RequiredArgsConstructor
 public class CartService {
@@ -16,6 +18,7 @@ public class CartService {
     private final CartRepository cartRepository;
     private final GameRepository gameRepository;
     private final ClientRepository clientRepository;
+    private final WishlistRepository wishlistRepository;
 
     public void addGame(long clientId, long gameId, int quantity) {
         if (quantity <= 0) {
@@ -39,6 +42,37 @@ public class CartService {
 
     public List<CartItem> getCart(long clientId) {
         return cartRepository.findByClientId(clientId);
+    }
+
+    public void addGameToWishlist(long clientId, long gameId) {
+        ensureClientExists(clientId);
+        gameRepository.findById(gameId)
+                .filter(Game::isActive)
+                .orElseThrow(() -> new IllegalArgumentException("Game not found in active catalog."));
+        wishlistRepository.addItem(clientId, gameId);
+    }
+
+    public boolean removeGameFromWishlist(long clientId, long gameId) {
+        return wishlistRepository.removeItem(clientId, gameId);
+    }
+
+    public List<WishlistItem> getWishlist(long clientId) {
+        return wishlistRepository.findByClientId(clientId);
+    }
+
+    public boolean moveGameFromWishlistToCart(long clientId, long gameId, int quantity) {
+        ensureClientExists(clientId);
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than zero.");
+        }
+
+        boolean removed = wishlistRepository.removeItem(clientId, gameId);
+        if (!removed) {
+            return false;
+        }
+
+        addGame(clientId, gameId, quantity);
+        return true;
     }
 
     public CheckoutResult checkout(long clientId) {
@@ -84,6 +118,11 @@ public class CartService {
         Game game = gameRepository.findById(item.getGameId())
                 .orElseThrow(() -> new IllegalStateException("Game in cart no longer exists."));
         return game.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+    }
+
+    private void ensureClientExists(long clientId) {
+        clientRepository.findById(clientId)
+                .orElseThrow(() -> new IllegalArgumentException("Client account not found."));
     }
 }
 

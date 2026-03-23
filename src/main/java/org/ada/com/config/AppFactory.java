@@ -5,6 +5,7 @@ import org.ada.com.adapters.out.persistence.h2.ConnectionProvider;
 import org.ada.com.adapters.out.persistence.h2.H2CartRepository;
 import org.ada.com.adapters.out.persistence.h2.H2ClientRepository;
 import org.ada.com.adapters.out.persistence.h2.H2GameRepository;
+import org.ada.com.adapters.out.persistence.h2.H2WishlistRepository;
 import org.ada.com.adapters.out.persistence.h2.SchemaInitializer;
 import org.ada.com.application.service.AuthorizationService;
 import org.ada.com.application.service.CartService;
@@ -24,12 +25,13 @@ public final class AppFactory {
         H2GameRepository gameRepository = new H2GameRepository(connectionProvider);
         H2ClientRepository clientRepository = new H2ClientRepository(connectionProvider);
         H2CartRepository cartRepository = new H2CartRepository(connectionProvider);
+        H2WishlistRepository wishlistRepository = new H2WishlistRepository(connectionProvider);
 
         AuthorizationService authorizationService = new AuthorizationService();
         SellerCatalogService sellerCatalogService = new SellerCatalogService(gameRepository);
         ClientCatalogService clientCatalogService = new ClientCatalogService(gameRepository);
         ClientWalletService clientWalletService = new ClientWalletService(clientRepository);
-        CartService cartService = new CartService(cartRepository, gameRepository, clientRepository);
+        CartService cartService = new CartService(cartRepository, gameRepository, clientRepository, wishlistRepository);
 
         return new TerminalApp(
                 authorizationService,

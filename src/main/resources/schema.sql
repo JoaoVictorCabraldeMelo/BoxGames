@@ -21,3 +21,11 @@ CREATE TABLE IF NOT EXISTS cart_items (
     CONSTRAINT fk_cart_game FOREIGN KEY (game_id) REFERENCES games(id)
 );
 
+CREATE TABLE IF NOT EXISTS wishlist_items (
+    client_id BIGINT NOT NULL,
+    game_id BIGINT NOT NULL,
+    PRIMARY KEY (client_id, game_id),
+    CONSTRAINT fk_wishlist_client FOREIGN KEY (client_id) REFERENCES clients(id),
+    CONSTRAINT fk_wishlist_game FOREIGN KEY (game_id) REFERENCES games(id)
+);
+
