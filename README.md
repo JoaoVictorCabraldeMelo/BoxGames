@@ -17,6 +17,8 @@ Terminal-based game catalog and shopping flow using hexagonal architecture.
 - Client: filter games by title and genre
 - Client: add/remove games in cart
 - Client: add credits and checkout purchase
+- Purchase history
+- Wishlist
 
 ## Project structure
 
