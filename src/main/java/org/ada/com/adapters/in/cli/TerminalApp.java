@@ -14,6 +14,7 @@ import org.ada.com.domain.model.CartItem;
 import org.ada.com.domain.model.ClientAccount;
 import org.ada.com.domain.model.Game;
 import org.ada.com.domain.model.UserRole;
+import org.ada.com.domain.model.WishlistItem;
 
 public class TerminalApp {
 
@@ -105,6 +106,9 @@ public class TerminalApp {
             System.out.println("5 - Add credits");
             System.out.println("6 - Checkout");
             System.out.println("7 - List All Games");
+            System.out.println("8 - Add game to wishlist");
+            System.out.println("9 - View wishlist");
+            System.out.println("10 - Move wishlist item to cart");
             System.out.println("0 - Back");
             String option = scanner.nextLine().trim();
 
@@ -128,6 +132,9 @@ public class TerminalApp {
                         List<Game> games = clientCatalogService.filterGames(null, null);
                         printGames(games);
                     }
+                    case "8" -> addGameToWishlist(scanner, clientId);
+                    case "9" -> viewWishlist(clientId);
+                    case "10" -> moveWishlistItemToCart(scanner, clientId);
                     case "0" -> inClientMenu = false;
                     default -> System.out.println("Invalid option.");
                 }
@@ -189,6 +196,19 @@ public class TerminalApp {
         System.out.println(removed ? "Item removed from cart." : "Item not found in cart.");
     }
 
+    private void addGameToWishlist(Scanner scanner, long clientId) {
+        long gameId = readLong(scanner, "Game id: ");
+        cartService.addGameToWishlist(clientId, gameId);
+        System.out.println("Item added to wishlist.");
+    }
+
+    private void moveWishlistItemToCart(Scanner scanner, long clientId) {
+        long gameId = readLong(scanner, "Game id: ");
+        int quantity = (int) readLong(scanner, "Quantity: ");
+        boolean moved = cartService.moveGameFromWishlistToCart(clientId, gameId, quantity);
+        System.out.println(moved ? "Item moved from wishlist to cart." : "Item not found in wishlist.");
+    }
+
     private void viewCart(long clientId) {
         List<CartItem> items = cartService.getCart(clientId);
         if (items.isEmpty()) {
@@ -206,6 +226,20 @@ public class TerminalApp {
                     game.getId(), game.getTitle(), item.getQuantity(), subtotal);
         }
         System.out.println("Cart total: " + total);
+    }
+
+    private void viewWishlist(long clientId) {
+        List<WishlistItem> items = cartService.getWishlist(clientId);
+        if (items.isEmpty()) {
+            System.out.println("Wishlist is empty.");
+            return;
+        }
+
+        for (WishlistItem item : items) {
+            Game game = gameRepository.findById(item.getGameId())
+                    .orElseThrow(() -> new IllegalStateException("Game in wishlist no longer exists."));
+            System.out.printf("Game %d - %s | %s | %s%n", game.getId(), game.getTitle(), game.getGenre(), game.getPrice());
+        }
     }
 
     private void printGames(List<Game> games) {
