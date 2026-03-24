@@ -32,6 +32,11 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+# H2 Database files
+*.mv.db
+*.trace.db
+*.lock.db
+
 ### VS Code ###
 .vscode/
 
