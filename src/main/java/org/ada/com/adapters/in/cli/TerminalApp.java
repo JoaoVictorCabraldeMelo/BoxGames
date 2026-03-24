@@ -9,9 +9,11 @@ import org.ada.com.application.service.CartService;
 import org.ada.com.application.service.CheckoutResult;
 import org.ada.com.application.service.ClientCatalogService;
 import org.ada.com.application.service.ClientWalletService;
+import org.ada.com.application.service.CouponService;
 import org.ada.com.application.service.SellerCatalogService;
 import org.ada.com.domain.model.CartItem;
 import org.ada.com.domain.model.ClientAccount;
+import org.ada.com.domain.model.Coupon;
 import org.ada.com.domain.model.Game;
 import org.ada.com.domain.model.Order;
 import org.ada.com.domain.model.OrderItem;
@@ -25,6 +27,7 @@ public class TerminalApp {
     private final ClientCatalogService clientCatalogService;
     private final ClientWalletService clientWalletService;
     private final CartService cartService;
+    private final CouponService couponService;
     private final GameRepository gameRepository;
 
     public TerminalApp(
@@ -33,12 +36,14 @@ public class TerminalApp {
             ClientCatalogService clientCatalogService,
             ClientWalletService clientWalletService,
             CartService cartService,
+            CouponService couponService,
             GameRepository gameRepository) {
         this.authorizationService = authorizationService;
         this.sellerCatalogService = sellerCatalogService;
         this.clientCatalogService = clientCatalogService;
         this.clientWalletService = clientWalletService;
         this.cartService = cartService;
+        this.couponService = couponService;
         this.gameRepository = gameRepository;
     }
 
@@ -77,6 +82,7 @@ public class TerminalApp {
             System.out.println("2 - Edit game");
             System.out.println("3 - Exclude game");
             System.out.println("4 - List catalog");
+            System.out.println("5 - Manage coupons");
             System.out.println("0 - Back");
             String option = scanner.nextLine().trim();
 
@@ -85,9 +91,70 @@ public class TerminalApp {
                 case "2" -> editGame(scanner);
                 case "3" -> excludeGame(scanner);
                 case "4" -> printGames(sellerCatalogService.listCatalog());
+                case "5" -> runCouponMenu(scanner);
                 case "0" -> inSellerMenu = false;
                 default -> System.out.println("Invalid option.");
             }
+        }
+    }
+
+    private void runCouponMenu(Scanner scanner) {
+        boolean inMenu = true;
+        while (inMenu) {
+            System.out.println("\n--- Coupon Menu ---");
+            System.out.println("1 - Create coupon");
+            System.out.println("2 - Edit coupon");
+            System.out.println("3 - Delete coupon");
+            System.out.println("4 - List coupons");
+            System.out.println("0 - Back");
+            String option = scanner.nextLine().trim();
+
+            try {
+                switch (option) {
+                    case "1" -> createCoupon(scanner);
+                    case "2" -> editCoupon(scanner);
+                    case "3" -> deleteCoupon(scanner);
+                    case "4" -> listCoupons();
+                    case "0" -> inMenu = false;
+                    default -> System.out.println("Invalid option.");
+                }
+            } catch (IllegalArgumentException ex) {
+                System.out.println(ex.getMessage());
+            }
+        }
+    }
+
+    private void createCoupon(Scanner scanner) {
+        System.out.print("Coupon code: ");
+        String code = scanner.nextLine();
+        BigDecimal pct = readBigDecimal(scanner, "Discount percentage (e.g. 10 for 10%): ");
+        Coupon coupon = couponService.createCoupon(code, pct);
+        System.out.println("Coupon created with id " + coupon.getId() + " | code: " + coupon.getCode());
+    }
+
+    private void editCoupon(Scanner scanner) {
+        long id = readLong(scanner, "Coupon id: ");
+        System.out.print("New code: ");
+        String code = scanner.nextLine();
+        BigDecimal pct = readBigDecimal(scanner, "New discount percentage: ");
+        boolean updated = couponService.editCoupon(id, code, pct);
+        System.out.println(updated ? "Coupon updated." : "Coupon not found.");
+    }
+
+    private void deleteCoupon(Scanner scanner) {
+        long id = readLong(scanner, "Coupon id to delete: ");
+        boolean deleted = couponService.deleteCoupon(id);
+        System.out.println(deleted ? "Coupon deleted." : "Coupon not found.");
+    }
+
+    private void listCoupons() {
+        List<Coupon> coupons = couponService.listCoupons();
+        if (coupons.isEmpty()) {
+            System.out.println("No active coupons.");
+            return;
+        }
+        for (Coupon c : coupons) {
+            System.out.printf("%d - %s | %s%%%n", c.getId(), c.getCode(), c.getDiscountPct());
         }
     }
 
@@ -127,8 +194,15 @@ public class TerminalApp {
                         System.out.println("Credits updated. New balance: " + account.getCredits());
                     }
                     case "6" -> {
-                        CheckoutResult result = cartService.checkout(clientId);
-                        System.out.println(result.getMessage() + " Total: " + result.getTotal());
+                        System.out.print("Apply coupon code? (leave blank to skip): ");
+                        String couponCode = scanner.nextLine().trim();
+                        CheckoutResult result = cartService.checkout(clientId, couponCode.isEmpty() ? null : couponCode);
+                        if (result.getDiscount() != null && result.getDiscount().compareTo(BigDecimal.ZERO) > 0) {
+                            System.out.printf("Coupon '%s' applied! Discount: %s%n",
+                                    result.getCouponCode(), result.getDiscount());
+                        }
+                        System.out.println(result.getMessage() + " Total: " + result.getTotal()
+                                + " | Remaining credits: " + result.getRemainingCredits());
                         account = account.toBuilder().credits(result.getRemainingCredits()).build();
                     }
                     case "7" -> {
@@ -319,4 +393,3 @@ public class TerminalApp {
         sellerCatalogService.registerGame("Farm Architect", "Simulation", new BigDecimal("19.90"));
     }
 }
-

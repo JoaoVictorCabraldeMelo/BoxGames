@@ -1,16 +1,19 @@
 package org.ada.com.application.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.ada.com.application.port.out.CartRepository;
 import org.ada.com.application.port.out.ClientRepository;
+import org.ada.com.application.port.out.CouponRepository;
 import org.ada.com.application.port.out.GameRepository;
 import org.ada.com.application.port.out.OrderRepository;
 import org.ada.com.application.port.out.WishlistRepository;
 import org.ada.com.domain.model.CartItem;
 import org.ada.com.domain.model.ClientAccount;
+import org.ada.com.domain.model.Coupon;
 import org.ada.com.domain.model.Game;
 import org.ada.com.domain.model.Order;
 import org.ada.com.domain.model.OrderItem;
@@ -24,6 +27,7 @@ public class CartService {
     private final ClientRepository clientRepository;
     private final WishlistRepository wishlistRepository;
     private final OrderRepository orderRepository;
+    private final CouponRepository couponRepository;
 
     public void addGame(long clientId, long gameId, int quantity) {
         if (quantity <= 0) {
@@ -85,7 +89,12 @@ public class CartService {
         return orderRepository.findByClientId(clientId);
     }
 
-    public CheckoutResult checkout(long clientId) {
+    /**
+     * Performs checkout, optionally applying a discount coupon.
+     *
+     * @param couponCode coupon code to apply, or {@code null} / blank to skip
+     */
+    public CheckoutResult checkout(long clientId, String couponCode) {
         ClientAccount client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new IllegalArgumentException("Client account not found."));
 
@@ -94,18 +103,19 @@ public class CartService {
             return CheckoutResult.builder()
                     .success(false)
                     .total(BigDecimal.ZERO)
+                    .discount(BigDecimal.ZERO)
                     .remainingCredits(client.getCredits())
                     .message("Cart is empty.")
                     .build();
         }
 
-        BigDecimal total = BigDecimal.ZERO;
+        BigDecimal subtotalSum = BigDecimal.ZERO;
         List<OrderItem> orderItems = new ArrayList<>();
         for (CartItem cartItem : items) {
             Game game = gameRepository.findById(cartItem.getGameId())
                 .orElseThrow(() -> new IllegalStateException("Game in cart no longer exists."));
             BigDecimal subtotal = game.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
-            total = total.add(subtotal);
+            subtotalSum = subtotalSum.add(subtotal);
             orderItems.add(OrderItem.builder()
                 .gameId(game.getId())
                 .gameTitle(game.getTitle())
@@ -116,11 +126,30 @@ public class CartService {
                 .build());
         }
 
+        // Apply coupon discount if provided
+        BigDecimal discount = BigDecimal.ZERO;
+        String appliedCode = null;
+        if (couponCode != null && !couponCode.isBlank()) {
+            Coupon coupon = couponRepository.findByCode(couponCode.trim().toUpperCase())
+                    .orElseThrow(() -> new IllegalArgumentException("Coupon not found: " + couponCode));
+            if (!coupon.isActive()) {
+                throw new IllegalArgumentException("Coupon is no longer active: " + couponCode);
+            }
+            discount = subtotalSum
+                    .multiply(coupon.getDiscountPct())
+                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+            appliedCode = coupon.getCode();
+        }
+
+        BigDecimal total = subtotalSum.subtract(discount);
+
         if (client.getCredits().compareTo(total) < 0) {
             return CheckoutResult.builder()
                     .success(false)
                     .total(total)
+                    .discount(discount)
                     .remainingCredits(client.getCredits())
+                    .couponCode(appliedCode)
                     .message("Insufficient credits.")
                     .build();
         }
@@ -133,7 +162,9 @@ public class CartService {
         return CheckoutResult.builder()
                 .success(true)
                 .total(total)
+                .discount(discount)
                 .remainingCredits(newCredits)
+                .couponCode(appliedCode)
                 .message("Purchase completed.")
                 .build();
     }
@@ -143,4 +174,3 @@ public class CartService {
                 .orElseThrow(() -> new IllegalArgumentException("Client account not found."));
     }
 }
-

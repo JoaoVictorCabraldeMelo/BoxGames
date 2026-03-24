@@ -9,7 +9,9 @@ import lombok.Value;
 public class CheckoutResult {
     boolean success;
     BigDecimal total;
+    BigDecimal discount;
     BigDecimal remainingCredits;
     String message;
+    String couponCode;
 }
 
