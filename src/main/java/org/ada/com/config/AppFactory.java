@@ -22,7 +22,7 @@ public final class AppFactory {
     }
 
     public static TerminalApp createTerminalApp() {
-        ConnectionProvider connectionProvider = new ConnectionProvider("jdbc:h2:mem:boxgames;DB_CLOSE_DELAY=-1", "sa", "");
+        ConnectionProvider connectionProvider = new ConnectionProvider("jdbc:h2:./boxgames;DB_CLOSE_DELAY=-1", "sa", "");
         new SchemaInitializer(connectionProvider).initialize();
 
         H2GameRepository gameRepository = new H2GameRepository(connectionProvider);

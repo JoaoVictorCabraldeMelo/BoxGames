@@ -207,7 +207,7 @@ public class TerminalApp {
                         account = account.toBuilder().credits(result.getRemainingCredits()).build();
                     }
                     case "7" -> {
-                        List<Game> games = clientCatalogService.filterGames(null, null);
+                        List<Game> games = clientCatalogService.filterGames(null, null, null, null);
                         printGames(games);
                     }
                     case "8" -> addGameToWishlist(scanner, clientId);
@@ -257,8 +257,16 @@ public class TerminalApp {
         String title = scanner.nextLine();
         System.out.print("Filter by genre (optional): ");
         String genre = scanner.nextLine();
+        System.out.print("Filter by minimum price (optional): ");
+        String minPriceInput = scanner.nextLine();
+        BigDecimal minPrice = minPriceInput.isBlank() ? null : new BigDecimal(minPriceInput.trim());
 
-        List<Game> games = clientCatalogService.filterGames(title, genre);
+        System.out.print("Filter by maximum price (optional): ");
+        String maxPriceInput = scanner.nextLine();
+        BigDecimal maxPrice = maxPriceInput.isBlank() ? null : new BigDecimal(maxPriceInput.trim());
+
+
+        List<Game> games = clientCatalogService.filterGames(title, genre, minPrice, maxPrice);
         printGames(games);
     }
 
