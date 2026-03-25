@@ -118,7 +118,7 @@ public class TerminalApp {
                     case "0" -> inMenu = false;
                     default -> System.out.println("Invalid option.");
                 }
-            } catch (IllegalArgumentException ex) {
+            } catch (IllegalArgumentException | IllegalStateException ex) {
                 System.out.println(ex.getMessage());
             }
         }
