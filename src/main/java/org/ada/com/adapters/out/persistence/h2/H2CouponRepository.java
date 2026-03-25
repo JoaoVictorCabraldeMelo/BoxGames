@@ -42,13 +42,14 @@ public class H2CouponRepository implements CouponRepository {
 
     @Override
     public boolean update(Coupon coupon) {
-        String sql = "UPDATE coupons SET code = ?, discount_pct = ? WHERE id = ? AND active = TRUE";
+        String sql = "UPDATE coupons SET code = ?, discount_pct = ?, active = ? WHERE id = ?";
 
         try (Connection connection = connectionProvider.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, coupon.getCode());
             statement.setBigDecimal(2, coupon.getDiscountPct());
-            statement.setLong(3, coupon.getId());
+            statement.setBoolean(3, coupon.isActive());
+            statement.setLong(4, coupon.getId());
             return statement.executeUpdate() > 0;
         } catch (SQLException ex) {
             throw new IllegalStateException("Failed to update coupon.", ex);

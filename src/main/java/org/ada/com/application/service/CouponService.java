@@ -20,13 +20,13 @@ public class CouponService {
                 .build());
     }
 
-    public boolean editCoupon(long id, String code, BigDecimal discountPct) {
+    public boolean editCoupon(long id, String code, BigDecimal discountPct, boolean active) {
         validate(code, discountPct);
         return couponRepository.update(Coupon.builder()
                 .id(id)
                 .code(code.trim().toUpperCase())
                 .discountPct(discountPct)
-                .active(true)
+                .active(active)
                 .build());
     }
 

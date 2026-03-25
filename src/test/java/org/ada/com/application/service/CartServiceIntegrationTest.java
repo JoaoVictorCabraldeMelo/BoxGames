@@ -247,11 +247,25 @@ class CartServiceIntegrationTest {
 
         assertThat(couponService.listCoupons()).hasSize(2);
 
-        boolean edited = couponService.editCoupon(second.getId(), "UPDATED15", new BigDecimal("15"));
+        boolean edited = couponService.editCoupon(second.getId(), "UPDATED15", new BigDecimal("15"), true);
         assertThat(edited).isTrue();
         assertThat(couponService.listCoupons())
                 .extracting(c -> c.getCode())
                 .contains("UPDATED15");
+    }
+
+    @Test
+    void shouldDeactivateAndReactivateCouponViaEdit() {
+        var coupon = couponService.createCoupon("TOGGLE10", new BigDecimal("10"));
+        assertThat(couponService.listCoupons()).hasSize(1);
+
+        // Deactivate via edit
+        couponService.editCoupon(coupon.getId(), "TOGGLE10", new BigDecimal("10"), false);
+        assertThat(couponService.listCoupons()).isEmpty();
+
+        // Reactivate via edit
+        couponService.editCoupon(coupon.getId(), "TOGGLE10", new BigDecimal("10"), true);
+        assertThat(couponService.listCoupons()).hasSize(1);
     }
 
     private void cleanDatabase() {

@@ -137,7 +137,8 @@ public class TerminalApp {
         System.out.print("New code: ");
         String code = scanner.nextLine();
         BigDecimal pct = readBigDecimal(scanner, "New discount percentage: ");
-        boolean updated = couponService.editCoupon(id, code, pct);
+        boolean active = readBoolean(scanner, "Active? (y/n): ");
+        boolean updated = couponService.editCoupon(id, code, pct, active);
         System.out.println(updated ? "Coupon updated." : "Coupon not found.");
     }
 
@@ -380,6 +381,16 @@ public class TerminalApp {
             } catch (NumberFormatException ex) {
                 System.out.println("Invalid decimal number.");
             }
+        }
+    }
+
+    private boolean readBoolean(Scanner scanner, String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String line = scanner.nextLine().trim().toLowerCase();
+            if (line.equals("y") || line.equals("yes")) return true;
+            if (line.equals("n") || line.equals("no"))  return false;
+            System.out.println("Please enter y or n.");
         }
     }
 
