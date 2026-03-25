@@ -40,10 +40,14 @@ public class CouponService {
 
     /** Resolves and validates a coupon code at checkout time. Returns the coupon if found and active. */
     public Coupon applyCoupon(String code) {
-        Coupon coupon = couponRepository.findByCode(code.trim().toUpperCase())
-                .orElseThrow(() -> new IllegalArgumentException("Coupon not found: " + code));
+        if (code == null || code.isBlank()) {
+            throw new IllegalArgumentException("Coupon code is required.");
+        }
+        String normalizedCode = code.trim().toUpperCase();
+        Coupon coupon = couponRepository.findByCode(normalizedCode)
+                .orElseThrow(() -> new IllegalArgumentException("Coupon not found: " + normalizedCode));
         if (!coupon.isActive()) {
-            throw new IllegalArgumentException("Coupon is no longer active: " + code);
+            throw new IllegalArgumentException("Coupon is no longer active: " + normalizedCode);
         }
         return coupon;
     }
