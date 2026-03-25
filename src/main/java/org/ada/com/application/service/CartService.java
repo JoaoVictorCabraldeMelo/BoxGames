@@ -7,7 +7,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.ada.com.application.port.out.CartRepository;
 import org.ada.com.application.port.out.ClientRepository;
-import org.ada.com.application.port.out.CouponRepository;
 import org.ada.com.application.port.out.GameRepository;
 import org.ada.com.application.port.out.OrderRepository;
 import org.ada.com.application.port.out.WishlistRepository;
@@ -27,7 +26,7 @@ public class CartService {
     private final ClientRepository clientRepository;
     private final WishlistRepository wishlistRepository;
     private final OrderRepository orderRepository;
-    private final CouponRepository couponRepository;
+    private final CouponService couponService;
 
     public void addGame(long clientId, long gameId, int quantity) {
         if (quantity <= 0) {
@@ -130,11 +129,7 @@ public class CartService {
         BigDecimal discount = BigDecimal.ZERO;
         String appliedCode = null;
         if (couponCode != null && !couponCode.isBlank()) {
-            Coupon coupon = couponRepository.findByCode(couponCode.trim().toUpperCase())
-                    .orElseThrow(() -> new IllegalArgumentException("Coupon not found: " + couponCode));
-            if (!coupon.isActive()) {
-                throw new IllegalArgumentException("Coupon is no longer active: " + couponCode);
-            }
+            Coupon coupon = couponService.applyCoupon(couponCode);
             discount = subtotalSum
                     .multiply(coupon.getDiscountPct())
                     .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);

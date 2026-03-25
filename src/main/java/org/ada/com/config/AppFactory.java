@@ -43,7 +43,7 @@ public final class AppFactory {
             clientRepository,
             wishlistRepository,
             orderRepository,
-            couponRepository);
+            couponService);
 
         return new TerminalApp(
                 authorizationService,

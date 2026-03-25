@@ -46,9 +46,9 @@ class CartServiceIntegrationTest {
         H2OrderRepository orderRepository = new H2OrderRepository(connectionProvider);
         couponRepository = new H2CouponRepository(connectionProvider);
 
-        cartService = new CartService(cartRepository, gameRepository, clientRepository, wishlistRepository, orderRepository, couponRepository);
-        walletService = new ClientWalletService(clientRepository);
         couponService = new CouponService(couponRepository);
+        cartService = new CartService(cartRepository, gameRepository, clientRepository, wishlistRepository, orderRepository, couponService);
+        walletService = new ClientWalletService(clientRepository);
     }
 
     @Test
