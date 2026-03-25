@@ -1,5 +1,6 @@
 package org.ada.com.application.port.out;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import org.ada.com.domain.model.Game;
@@ -15,6 +16,6 @@ public interface GameRepository {
 
     List<Game> findAllActive();
 
-    List<Game> filterActive(String titleContains, String genre);
+    List<Game> filterActive(String titleContains, String genre, BigDecimal minPrice, BigDecimal maxPrice);
 }
 

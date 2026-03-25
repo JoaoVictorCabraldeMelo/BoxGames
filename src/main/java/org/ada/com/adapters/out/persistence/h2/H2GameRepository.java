@@ -1,5 +1,6 @@
 package org.ada.com.adapters.out.persistence.h2;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -104,13 +105,15 @@ public class H2GameRepository implements GameRepository {
     }
 
     @Override
-    public List<Game> filterActive(String titleContains, String genre) {
+    public List<Game> filterActive(String titleContains, String genre, BigDecimal minPrice, BigDecimal maxPrice) {
         String sql = """
                 SELECT id, title, genre, price, active
                 FROM games
                 WHERE active = TRUE
                   AND (? IS NULL OR LOWER(title) LIKE ?)
                   AND (? IS NULL OR LOWER(genre) = LOWER(?))
+                  AND (? IS NULL OR price >= ?)
+                  AND (? IS NULL OR price <= ?)
                 ORDER BY id
                 """;
 
@@ -123,6 +126,10 @@ public class H2GameRepository implements GameRepository {
             statement.setString(2, cleanTitle == null ? null : "%" + cleanTitle + "%");
             statement.setString(3, cleanGenre);
             statement.setString(4, cleanGenre);
+            statement.setObject(5, minPrice);
+            statement.setObject(6, minPrice);
+            statement.setObject(7, maxPrice);
+            statement.setObject(8, maxPrice);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 return readGames(resultSet);
