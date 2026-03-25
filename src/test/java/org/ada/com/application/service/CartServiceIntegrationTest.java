@@ -1,12 +1,17 @@
 package org.ada.com.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 import org.ada.com.adapters.out.persistence.h2.ConnectionProvider;
 import org.ada.com.adapters.out.persistence.h2.H2CartRepository;
 import org.ada.com.adapters.out.persistence.h2.H2ClientRepository;
+import org.ada.com.adapters.out.persistence.h2.H2CouponRepository;
 import org.ada.com.adapters.out.persistence.h2.H2GameRepository;
 import org.ada.com.adapters.out.persistence.h2.H2OrderRepository;
 import org.ada.com.adapters.out.persistence.h2.H2WishlistRepository;
@@ -22,21 +27,27 @@ class CartServiceIntegrationTest {
 
     private H2GameRepository gameRepository;
     private H2ClientRepository clientRepository;
+    private H2CouponRepository couponRepository;
     private CartService cartService;
     private ClientWalletService walletService;
+    private CouponService couponService;
+    private ConnectionProvider connectionProvider;
 
     @BeforeEach
     void setUp() {
-        ConnectionProvider connectionProvider = new ConnectionProvider("jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1", "sa", "");
+        connectionProvider = new ConnectionProvider("jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1", "sa", "");
         new SchemaInitializer(connectionProvider).initialize();
+        cleanDatabase();
 
         gameRepository = new H2GameRepository(connectionProvider);
         clientRepository = new H2ClientRepository(connectionProvider);
         H2CartRepository cartRepository = new H2CartRepository(connectionProvider);
         H2WishlistRepository wishlistRepository = new H2WishlistRepository(connectionProvider);
         H2OrderRepository orderRepository = new H2OrderRepository(connectionProvider);
+        couponRepository = new H2CouponRepository(connectionProvider);
 
-        cartService = new CartService(cartRepository, gameRepository, clientRepository, wishlistRepository, orderRepository);
+        couponService = new CouponService(couponRepository);
+        cartService = new CartService(cartRepository, gameRepository, clientRepository, wishlistRepository, orderRepository, couponService);
         walletService = new ClientWalletService(clientRepository);
     }
 
@@ -53,7 +64,7 @@ class CartServiceIntegrationTest {
         walletService.addCredits(10L, new BigDecimal("100.00"));
         cartService.addGame(10L, game.getId(), 2);
 
-        CheckoutResult result = cartService.checkout(10L);
+        CheckoutResult result = cartService.checkout(10L, null);
 
         assertThat(result.isSuccess()).isTrue();
         assertThat(result.getTotal()).isEqualByComparingTo("40.00");
@@ -139,7 +150,7 @@ class CartServiceIntegrationTest {
         walletService.addCredits(50L, new BigDecimal("100.00"));
         cartService.addGame(50L, game.getId(), 2);
 
-        CheckoutResult result = cartService.checkout(50L);
+        CheckoutResult result = cartService.checkout(50L, null);
 
         assertThat(result.isSuccess()).isTrue();
         List<Order> history = cartService.getOrderHistory(50L);
@@ -164,5 +175,108 @@ class CartServiceIntegrationTest {
 
         assertThat(history).isEmpty();
     }
-}
 
+    // --- Coupon tests ---
+
+    @Test
+    void shouldApplyCouponDiscountAtCheckout() {
+        Game game = gameRepository.create(Game.builder()
+                .title("Discounted Game")
+                .genre("RPG")
+                .price(new BigDecimal("100.00"))
+                .active(true)
+                .build());
+
+        walletService.loadOrCreateClient(70L, "Grace");
+        walletService.addCredits(70L, new BigDecimal("200.00"));
+        cartService.addGame(70L, game.getId(), 1);
+
+        couponService.createCoupon("SAVE10", new BigDecimal("10"));
+        CheckoutResult result = cartService.checkout(70L, "SAVE10");
+
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getDiscount()).isEqualByComparingTo("10.00");
+        assertThat(result.getTotal()).isEqualByComparingTo("90.00");
+        assertThat(result.getRemainingCredits()).isEqualByComparingTo("110.00");
+        assertThat(result.getCouponCode()).isEqualTo("SAVE10");
+    }
+
+    @Test
+    void shouldThrowWhenCouponCodeIsInvalid() {
+        Game game = gameRepository.create(Game.builder()
+                .title("Another Game")
+                .genre("Action")
+                .price(new BigDecimal("50.00"))
+                .active(true)
+                .build());
+
+        walletService.loadOrCreateClient(80L, "Henry");
+        walletService.addCredits(80L, new BigDecimal("200.00"));
+        cartService.addGame(80L, game.getId(), 1);
+
+        assertThatThrownBy(() -> cartService.checkout(80L, "INVALID"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Coupon not found");
+    }
+
+    @Test
+    void shouldThrowWhenCouponIsDeleted() {
+        Game game = gameRepository.create(Game.builder()
+                .title("Yet Another Game")
+                .genre("Strategy")
+                .price(new BigDecimal("40.00"))
+                .active(true)
+                .build());
+
+        walletService.loadOrCreateClient(90L, "Iris");
+        walletService.addCredits(90L, new BigDecimal("200.00"));
+        cartService.addGame(90L, game.getId(), 1);
+
+        var coupon = couponService.createCoupon("DELETED20", new BigDecimal("20"));
+        couponService.deleteCoupon(coupon.getId());
+
+        assertThatThrownBy(() -> cartService.checkout(90L, "DELETED20"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Coupon is no longer active");
+    }
+
+    @Test
+    void shouldListAndEditCoupons() {
+        couponService.createCoupon("FIRST5", new BigDecimal("5"));
+        var second = couponService.createCoupon("SECOND15", new BigDecimal("15"));
+
+        assertThat(couponService.listCoupons()).hasSize(2);
+
+        boolean edited = couponService.editCoupon(second.getId(), "UPDATED15", new BigDecimal("15"), true);
+        assertThat(edited).isTrue();
+        assertThat(couponService.listCoupons())
+                .extracting(c -> c.getCode())
+                .contains("UPDATED15");
+    }
+
+    @Test
+    void shouldDeactivateAndReactivateCouponViaEdit() {
+        var coupon = couponService.createCoupon("TOGGLE10", new BigDecimal("10"));
+        assertThat(couponService.listCoupons()).hasSize(1);
+
+        // Deactivate via edit
+        couponService.editCoupon(coupon.getId(), "TOGGLE10", new BigDecimal("10"), false);
+        assertThat(couponService.listCoupons()).isEmpty();
+
+        // Reactivate via edit
+        couponService.editCoupon(coupon.getId(), "TOGGLE10", new BigDecimal("10"), true);
+        assertThat(couponService.listCoupons()).hasSize(1);
+    }
+
+    private void cleanDatabase() {
+        String sql = "DELETE FROM order_items; DELETE FROM orders; DELETE FROM cart_items;"
+                + " DELETE FROM wishlist_items; DELETE FROM clients; DELETE FROM games;"
+                + " DELETE FROM coupons;";
+        try (Connection conn = connectionProvider.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        } catch (SQLException ex) {
+            throw new IllegalStateException("Failed to clean test database.", ex);
+        }
+    }
+}

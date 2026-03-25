@@ -4,6 +4,7 @@ import org.ada.com.adapters.in.cli.TerminalApp;
 import org.ada.com.adapters.out.persistence.h2.ConnectionProvider;
 import org.ada.com.adapters.out.persistence.h2.H2CartRepository;
 import org.ada.com.adapters.out.persistence.h2.H2ClientRepository;
+import org.ada.com.adapters.out.persistence.h2.H2CouponRepository;
 import org.ada.com.adapters.out.persistence.h2.H2GameRepository;
 import org.ada.com.adapters.out.persistence.h2.H2OrderRepository;
 import org.ada.com.adapters.out.persistence.h2.H2WishlistRepository;
@@ -12,6 +13,7 @@ import org.ada.com.application.service.AuthorizationService;
 import org.ada.com.application.service.CartService;
 import org.ada.com.application.service.ClientCatalogService;
 import org.ada.com.application.service.ClientWalletService;
+import org.ada.com.application.service.CouponService;
 import org.ada.com.application.service.SellerCatalogService;
 
 public final class AppFactory {
@@ -28,17 +30,20 @@ public final class AppFactory {
         H2CartRepository cartRepository = new H2CartRepository(connectionProvider);
         H2WishlistRepository wishlistRepository = new H2WishlistRepository(connectionProvider);
         H2OrderRepository orderRepository = new H2OrderRepository(connectionProvider);
+        H2CouponRepository couponRepository = new H2CouponRepository(connectionProvider);
 
         AuthorizationService authorizationService = new AuthorizationService();
         SellerCatalogService sellerCatalogService = new SellerCatalogService(gameRepository);
         ClientCatalogService clientCatalogService = new ClientCatalogService(gameRepository);
         ClientWalletService clientWalletService = new ClientWalletService(clientRepository);
+        CouponService couponService = new CouponService(couponRepository);
         CartService cartService = new CartService(
             cartRepository,
             gameRepository,
             clientRepository,
             wishlistRepository,
-            orderRepository);
+            orderRepository,
+            couponService);
 
         return new TerminalApp(
                 authorizationService,
@@ -46,6 +51,7 @@ public final class AppFactory {
                 clientCatalogService,
                 clientWalletService,
                 cartService,
+                couponService,
                 gameRepository);
     }
 }
